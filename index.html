@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0c0f">
+<title>FlotaPro — Gestión de Flota</title>
+<link rel="manifest" href="/manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#0a0c0f;--surface:#111318;--surface2:#191d24;--surface3:#20262f;--border:#2a3040;--accent:#e8ff47;--accent2:#47c8ff;--accent3:#ff6b47;--text:#f0f2f5;--text2:#8892a4;--text3:#4a5568;--success:#4ade80;--warning:#fbbf24;--danger:#f87171;--r:12px;--rlg:20px;}
+*{margin:0;padding:0;box-sizing:border-box;}html{scroll-behavior:smooth;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ── AUTH SCREEN ── */
+#auth-screen{display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px;background:radial-gradient(ellipse at 60% 20%, rgba(232,255,71,.06) 0%, transparent 60%), var(--bg);}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);padding:40px;width:100%;max-width:420px;box-shadow:0 24px 80px rgba(0,0,0,.5);}
+.auth-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:28px;color:var(--accent);letter-spacing:-.5px;margin-bottom:4px;}
+.auth-sub{font-size:13px;color:var(--text2);margin-bottom:32px;}
+.auth-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:28px;}
+.auth-tab{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;font-family:'DM Sans',sans-serif;}
+.auth-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.auth-error{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--danger);margin-bottom:16px;display:none;}
+.auth-error.show{display:block;}
+.auth-success{background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--success);margin-bottom:16px;display:none;}
+.auth-success.show{display:block;}
+
+/* ── APP LAYOUT ── */
+#app-screen{display:none;min-height:100vh;flex-direction:column;}
+#app-screen.visible{display:flex;}
+.layout{display:flex;flex:1;min-height:100vh;}
+.sidebar{width:240px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:100;transition:transform .3s;}
+.sidebar-logo{padding:24px 24px 18px;border-bottom:1px solid var(--border);}
+.logo-mark{font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--accent);}
+.logo-sub{font-size:10px;color:var(--text2);letter-spacing:2px;text-transform:uppercase;margin-top:2px;}
+.sidebar-nav{padding:16px 12px;flex:1;overflow-y:auto;}
+.nav-section{margin-bottom:24px;}
+.nav-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);padding:0 12px;margin-bottom:8px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;font-size:14px;color:var(--text2);transition:all .15s;border:1px solid transparent;margin-bottom:2px;}
+.nav-item:hover{background:var(--surface2);color:var(--text);}
+.nav-item.active{background:var(--surface3);color:var(--accent);border-color:var(--border);}
+.nav-item .ico{width:17px;height:17px;flex-shrink:0;}
+.nav-item.admin-only{display:none;}
+.is-admin .nav-item.admin-only{display:flex;}
+.sidebar-user{padding:16px;border-top:1px solid var(--border);}
+.user-info{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.user-avatar{width:36px;height:36px;border-radius:50%;background:var(--surface3);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--accent);flex-shrink:0;}
+.user-name{font-size:13px;font-weight:500;line-height:1.3;}
+.user-role{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;}
+.btn-logout{width:100%;padding:8px;border-radius:8px;background:transparent;border:1px solid var(--border);color:var(--text2);font-size:12px;cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;}
+.btn-logout:hover{background:rgba(248,113,113,.1);border-color:var(--danger);color:var(--danger);}
+.main{margin-left:240px;flex:1;display:flex;flex-direction:column;min-height:100vh;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.page-title{font-family:'Syne',sans-serif;font-size:19px;font-weight:700;}
+.topbar-right{display:flex;gap:10px;align-items:center;}
+.search-bar{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 13px;display:flex;align-items:center;gap:8px;width:260px;}
+.search-bar input{background:none;border:none;outline:none;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;flex:1;}
+.search-bar input::placeholder{color:var(--text3);}
+.content{padding:28px;flex:1;}
+.view{display:none;}.view.active{display:block;}
+
+/* ── BUTTONS ── */
+.btn{padding:9px 18px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;font-family:'DM Sans',sans-serif;}
+.btn-primary{background:var(--accent);color:#0a0c0f;}.btn-primary:hover{background:#d4e83d;transform:translateY(-1px);}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.btn-secondary{background:var(--surface3);color:var(--text);border:1px solid var(--border);}.btn-secondary:hover{background:var(--surface2);border-color:var(--accent);}
+.btn-danger{background:transparent;color:var(--danger);border:1px solid var(--danger);}.btn-danger:hover{background:var(--danger);color:#fff;}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.admin-action{display:none;}.is-admin .admin-action{display:inline-flex;}
+
+/* ── STATS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;position:relative;overflow:hidden;}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.stat-card.y::before{background:var(--accent);}.stat-card.g::before{background:var(--success);}.stat-card.b::before{background:var(--accent2);}.stat-card.o::before{background:var(--accent3);}
+.stat-label{font-size:11px;color:var(--text2);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;}
+.stat-value{font-family:'Syne',sans-serif;font-size:32px;font-weight:800;}
+.stat-sub{font-size:12px;color:var(--text2);margin-top:4px;}
+.cy{color:var(--accent);}.cg{color:var(--success);}.cb{color:var(--accent2);}.co{color:var(--accent3);}
+
+/* ── VEHICLES ── */
+.vehicles-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:18px;}
+.vehicle-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);overflow:hidden;transition:all .2s;}
+.vehicle-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 12px 40px rgba(232,255,71,.07);}
+.vehicle-img{height:155px;display:flex;align-items:center;justify-content:center;font-size:68px;position:relative;overflow:hidden;}
+.vehicle-img-bg{position:absolute;inset:0;background:linear-gradient(135deg,var(--surface2),var(--surface3));}
+.vehicle-img-emoji{position:relative;z-index:1;filter:drop-shadow(0 4px 12px rgba(0,0,0,.4));}
+.vehicle-info{padding:16px;}
+.vehicle-name{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:4px;}
+.vehicle-plate{display:inline-block;background:var(--surface3);color:var(--text2);font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;letter-spacing:1px;margin-bottom:10px;border:1px solid var(--border);}
+.vehicle-meta{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.meta-item{font-size:11px;color:var(--text2);}
+.vehicle-status{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;padding:4px 10px;border-radius:20px;}
+.s-av{background:rgba(74,222,128,.1);color:var(--success);border:1px solid rgba(74,222,128,.2);}
+.s-re{background:rgba(251,191,36,.1);color:var(--warning);border:1px solid rgba(251,191,36,.2);}
+.s-ma{background:rgba(248,113,113,.1);color:var(--danger);border:1px solid rgba(248,113,113,.2);}
+.sdot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.vehicle-actions{display:flex;gap:7px;padding:12px 16px;border-top:1px solid var(--border);}
+
+/* ── TABLES ── */
+.table-container{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);overflow:hidden;}
+.table-header{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.table-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;}
+table{width:100%;border-collapse:collapse;}
+th{background:var(--surface2);padding:11px 18px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;}
+td{padding:13px 18px;border-bottom:1px solid var(--border);font-size:13px;}
+tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(255,255,255,.02);}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+
+/* ── FORMS ── */
+.form-group{margin-bottom:16px;}
+.form-label{display:block;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:7px;}
+.form-input,.form-select,.form-textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 13px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;transition:border-color .15s;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--accent);}
+.form-select{appearance:none;cursor:pointer;}.form-textarea{resize:vertical;min-height:76px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(6px);padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);width:100%;max-width:540px;max-height:92vh;overflow-y:auto;animation:mIn .2s ease;}
+@keyframes mIn{from{opacity:0;transform:scale(.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-header{padding:22px 26px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;}
+.modal-close{width:30px;height:30px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;transition:all .15s;line-height:1;}
+.modal-close:hover{background:var(--danger);border-color:var(--danger);color:#fff;}
+.modal-body{padding:22px 26px;}.modal-footer{padding:14px 26px 22px;display:flex;gap:8px;justify-content:flex-end;}
+
+/* ── FICHA ── */
+.ficha-header{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rlg);padding:24px;margin-bottom:20px;display:flex;gap:22px;align-items:center;}
+.ficha-name{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;}
+.specs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+.spec-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;}
+.spec-label{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;}
+.spec-value{font-size:15px;font-weight:600;}
+
+/* ── CALENDAR ── */
+.cal-container{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);padding:22px;}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.cal-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;}
+.cal-nav{display:flex;gap:7px;}
+.cal-btn{width:34px;height:34px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.cal-btn:hover{background:var(--surface3);border-color:var(--accent);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.cal-dname{text-align:center;font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;padding:7px 3px;}
+.cal-day{min-height:76px;padding:5px;background:var(--surface2);border-radius:7px;border:1px solid var(--border);cursor:pointer;transition:all .15s;}
+.cal-day:hover{border-color:var(--accent2);background:var(--surface3);}
+.cal-day.om{opacity:.3;}.cal-day.td{border-color:var(--accent);}
+.cal-day.td .cal-num{color:var(--accent);font-weight:700;}
+.cal-num{font-size:12px;font-weight:500;margin-bottom:3px;}
+.cal-ev{font-size:9px;padding:2px 4px;border-radius:3px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;}
+.cal-ev.res{background:rgba(71,200,255,.2);color:var(--accent2);}
+
+/* ── DOCS ── */
+.drop-zone{border:2px dashed var(--border);border-radius:var(--r);padding:28px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface2);}
+.drop-zone:hover,.drop-zone.dov{border-color:var(--accent);background:rgba(232,255,71,.04);}
+.doc-list{display:flex;flex-direction:column;gap:7px;}
+.doc-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 14px;display:flex;align-items:center;gap:10px;}
+.doc-name{flex:1;font-size:13px;font-weight:500;}
+.doc-size{font-size:11px;color:var(--text2);}
+
+/* ── ADMIN USERS TABLE ── */
+.role-badge-admin{background:rgba(232,255,71,.1);color:var(--accent);border:1px solid rgba(232,255,71,.2);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.role-badge-user{background:rgba(71,200,255,.1);color:var(--accent2);border:1px solid rgba(71,200,255,.2);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+
+/* ── FILTERS ── */
+.filters{display:flex;gap:7px;flex-wrap:wrap;align-items:center;}
+.filter-btn{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text2);transition:all .15s;font-family:'DM Sans',sans-serif;}
+.filter-btn:hover{border-color:var(--accent2);color:var(--accent2);}
+.filter-btn.active{background:var(--accent);color:#0a0c0f;border-color:var(--accent);font-weight:700;}
+
+/* ── TABS ── */
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:22px;}
+.tab-btn{padding:11px 18px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;font-family:'DM Sans',sans-serif;}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-pane{display:none;}.tab-pane.active{display:block;}
+
+/* ── MISC ── */
+.section-title{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;margin-bottom:18px;}
+.empty-state{text-align:center;padding:56px 20px;color:var(--text2);}
+.empty-state-icon{font-size:52px;margin-bottom:14px;}
+.empty-state h3{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;color:var(--text);margin-bottom:7px;}
+.flex{display:flex;}.aic{align-items:center;}.jcb{justify-content:space-between;}.mb18{margin-bottom:18px;}.gap10{gap:10px;}
+
+/* ── LOADING ── */
+.loading-overlay{position:fixed;inset:0;background:rgba(10,12,15,.92);z-index:9998;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
+.loading-overlay.hidden{display:none;}
+.spinner{width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:14px;color:var(--text2);}
+
+/* ── TOAST ── */
+.toast-container{position:fixed;bottom:22px;right:22px;z-index:9999;display:flex;flex-direction:column;gap:7px;}
+.toast{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 16px;display:flex;align-items:center;gap:9px;font-size:13px;min-width:250px;animation:tIn .3s ease;box-shadow:0 8px 32px rgba(0,0,0,.4);}
+@keyframes tIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+.toast.success{border-color:rgba(74,222,128,.3);}.toast.error{border-color:rgba(248,113,113,.3);}
+
+::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:var(--surface);}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0;}
+  .stats-grid{grid-template-columns:repeat(2,1fr);}
+  .form-row{grid-template-columns:1fr;}
+  .specs-grid{grid-template-columns:repeat(2,1fr);}
+  .search-bar{width:180px;}
+  .hamburger{display:flex!important;}
+}
+.hamburger{display:none;width:36px;height:36px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);cursor:pointer;align-items:center;justify-content:center;font-size:18px;}
+.overlay-mob{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;}
+.overlay-mob.show{display:block;}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">Iniciando FlotaPro...</div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     AUTH SCREEN
+═══════════════════════════════════════════ -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">FlotaPro</div>
+    <div class="auth-sub">Gestión inteligente de flota</div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login',this)">Iniciar Sesión</button>
+      <button class="auth-tab" onclick="switchAuthTab('register',this)">Registrarse</button>
+    </div>
+
+    <div id="auth-error" class="auth-error"></div>
+    <div id="auth-success" class="auth-success"></div>
+
+    <!-- LOGIN -->
+    <div id="tab-login">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" id="login-email" placeholder="tu@email.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contraseña</label>
+        <input type="password" class="form-input" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:4px" id="btn-login" onclick="doLogin()">Entrar</button>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="tab-register" style="display:none">
+      <div class="form-group">
+        <label class="form-label">Nombre</label>
+        <input type="text" class="form-input" id="reg-nombre" placeholder="Tu nombre">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" id="reg-email" placeholder="tu@email.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contraseña</label>
+        <input type="password" class="form-input" id="reg-password" placeholder="Mínimo 6 caracteres">
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:4px" id="btn-register" onclick="doRegister()">Crear Cuenta</button>
+      <p style="font-size:12px;color:var(--text2);text-align:center;margin-top:14px">Las nuevas cuentas tienen rol <strong>usuario</strong>.<br>El admin puede elevar permisos desde el panel.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     APP SCREEN
+═══════════════════════════════════════════ -->
+<div id="app-screen">
+<div class="overlay-mob" id="mob-overlay" onclick="closeSidebar()"></div>
+<div class="layout">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">FlotaPro</div>
+      <div class="logo-sub">Gestión de Flota</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-label">Principal</div>
+        <div class="nav-item active" onclick="showView('dashboard')">
+          <svg class="ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard
+        </div>
+        <div class="nav-item" onclick="showView('vehiculos')">
+          <svg class="ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v9a2 2 0 01-2 2h-1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>Vehículos
+        </div>
+        <div class="nav-item" onclick="showView('reservas')">
+          <svg class="ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Reservas
+        </div>
+        <div class="nav-item" onclick="showView('calendario')">
+          <svg class="ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendario
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Gestión</div>
+        <div class="nav-item" onclick="showView('historial')">
+          <svg class="ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Historial
+        </div>
+        <div class="nav-item" onclick="showView('documentos')">
+          <svg class="ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Documentos
+        </div>
+        <div class="nav-item admin-only" onclick="showView('usuarios')">
+          <svg class="ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>Usuarios
+        </div>
+      </div>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-info">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <div>
+          <div class="user-name" id="user-name">—</div>
+          <div class="user-role" id="user-role">—</div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">⟵ Cerrar Sesión</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="hamburger" id="hamburger" onclick="toggleSidebar()">☰</button>
+        <div class="page-title" id="topbarTitle">Dashboard</div>
+      </div>
+      <div class="topbar-right">
+        <div class="search-bar">
+          <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color:var(--text3)"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" placeholder="Buscar..." id="search-input" oninput="handleSearch(this.value)">
+        </div>
+        <button class="btn btn-primary admin-action" onclick="openModal('reservaModal');populateReservaVehiculos()">+ Reserva</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div id="view-dashboard" class="view active">
+        <div class="stats-grid">
+          <div class="stat-card y"><div class="stat-label">Total Vehículos</div><div class="stat-value cy" id="st-total">—</div><div class="stat-sub">En la flota</div></div>
+          <div class="stat-card g"><div class="stat-label">Disponibles</div><div class="stat-value cg" id="st-disp">—</div><div class="stat-sub">Listos para reservar</div></div>
+          <div class="stat-card b"><div class="stat-label">Reservados</div><div class="stat-value cb" id="st-res">—</div><div class="stat-sub">En uso</div></div>
+          <div class="stat-card o"><div class="stat-label">Mantenimiento</div><div class="stat-value co" id="st-mant">—</div><div class="stat-sub">Fuera de servicio</div></div>
+        </div>
+        <div class="section-title">Flota</div>
+        <div class="vehicles-grid" id="dash-vehicles"><div style="padding:32px;color:var(--text2);display:flex;gap:12px;align-items:center"><div class="spinner"></div>Cargando...</div></div>
+      </div>
+
+      <!-- VEHICULOS -->
+      <div id="view-vehiculos" class="view">
+        <div class="flex jcb aic mb18" style="flex-wrap:wrap;gap:10px">
+          <div class="filters" id="v-filters">
+            <button class="filter-btn active" onclick="filterV('todos',this)">Todos</button>
+            <button class="filter-btn" onclick="filterV('disponible',this)">Disponibles</button>
+            <button class="filter-btn" onclick="filterV('reservado',this)">Reservados</button>
+            <button class="filter-btn" onclick="filterV('mantenimiento',this)">Mantenimiento</button>
+          </div>
+          <button class="btn btn-primary admin-action" onclick="openModal('addVehicleModal')">+ Añadir Vehículo</button>
+        </div>
+        <div class="vehicles-grid" id="v-grid"></div>
+      </div>
+
+      <!-- RESERVAS -->
+      <div id="view-reservas" class="view">
+        <div class="flex jcb aic mb18" style="flex-wrap:wrap;gap:10px">
+          <div class="section-title" style="margin:0">Reservas Activas</div>
+          <button class="btn btn-primary admin-action" onclick="openModal('reservaModal');populateReservaVehiculos()">+ Nueva Reserva</button>
+        </div>
+        <div class="table-container">
+          <table><thead><tr><th>Vehículo</th><th>Conductor</th><th>Desde</th><th>Hasta</th><th>Destino</th><th>Estado</th><th class="admin-action">Acciones</th></tr></thead>
+          <tbody id="res-tbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- CALENDARIO -->
+      <div id="view-calendario" class="view">
+        <div class="cal-container">
+          <div class="cal-header">
+            <div class="cal-title" id="cal-label"></div>
+            <div style="display:flex;gap:14px;align-items:center">
+              <span style="font-size:11px;display:flex;align-items:center;gap:4px"><span style="width:9px;height:9px;border-radius:2px;background:rgba(71,200,255,.4);display:inline-block"></span>Reserva</span>
+              <div class="cal-nav">
+                <button class="cal-btn" onclick="changeMonth(-1)">←</button>
+                <button class="cal-btn" onclick="changeMonth(1)">→</button>
+              </div>
+            </div>
+          </div>
+          <div class="cal-grid" id="cal-grid"></div>
+        </div>
+      </div>
+
+      <!-- HISTORIAL -->
+      <div id="view-historial" class="view">
+        <div class="section-title">Historial de Reservas</div>
+        <div class="table-container">
+          <div class="table-header">
+            <div class="table-title">Todas las reservas</div>
+            <div class="filters">
+              <button class="filter-btn active" onclick="filterH('todos',this)">Todos</button>
+              <button class="filter-btn" onclick="filterH('completada',this)">Completadas</button>
+              <button class="filter-btn" onclick="filterH('cancelada',this)">Canceladas</button>
+              <button class="filter-btn" onclick="filterH('activa',this)">Activas</button>
+            </div>
+          </div>
+          <table><thead><tr><th>Fecha</th><th>Vehículo</th><th>Conductor</th><th>Destino</th><th>Estado</th><th>Notas</th></tr></thead>
+          <tbody id="hist-tbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- DOCUMENTOS -->
+      <div id="view-documentos" class="view">
+        <div class="section-title">Documentos de la Flota</div>
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchDocTab('upload',this)">Subir</button>
+          <button class="tab-btn" onclick="switchDocTab('list',this)">Ver Documentos</button>
+        </div>
+        <div id="doc-upload" class="tab-pane active">
+          <div style="max-width:580px">
+            <div class="form-group"><label class="form-label">Vehículo</label><select class="form-select" id="doc-veh-sel"></select></div>
+            <div class="form-group"><label class="form-label">Tipo</label>
+              <select class="form-select" id="doc-tipo-sel"><option>Factura de Compra</option><option>Seguro</option><option>ITV / Inspección</option><option>Permiso de Circulación</option><option>Factura de Mantenimiento</option><option>Contrato de Leasing</option><option>Otro</option></select>
+            </div>
+            <div class="form-group"><label class="form-label">Fecha del Documento</label><input type="date" class="form-input" id="doc-fecha"></div>
+            <div class="drop-zone" id="drop-zone" ondragover="event.preventDefault();this.classList.add('dov')" ondragleave="this.classList.remove('dov')" ondrop="handleDrop(event)" onclick="document.getElementById('file-input').click()">
+              <div style="font-size:36px;margin-bottom:8px">📄</div>
+              <div style="font-size:13px;color:var(--text2)">Arrastra archivos o <span style="color:var(--accent);font-weight:600">haz clic para seleccionar</span></div>
+              <div style="font-size:11px;color:var(--text3);margin-top:6px">PDF, DOC, JPG — Máx. 10MB</div>
+            </div>
+            <input type="file" id="file-input" accept=".pdf,.doc,.docx,.jpg,.png" style="display:none" multiple onchange="handleFileSelect(event)">
+            <div id="pending-uploads"></div>
+            <div style="margin-top:14px"><button class="btn btn-primary" id="btn-upload-docs" onclick="uploadDocuments()">⬆ Subir Documentos</button></div>
+          </div>
+        </div>
+        <div id="doc-list" class="tab-pane">
+          <div style="max-width:280px;margin-bottom:18px">
+            <select class="form-select" id="doc-filter-veh" onchange="renderDocList()"><option value="">Todos los vehículos</option></select>
+          </div>
+          <div id="doc-list-container"></div>
+        </div>
+      </div>
+
+      <!-- USUARIOS (solo admin) -->
+      <div id="view-usuarios" class="view">
+        <div class="section-title">Gestión de Usuarios</div>
+        <div class="table-container">
+          <div class="table-header">
+            <div class="table-title">Usuarios registrados</div>
+          </div>
+          <table><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Registro</th><th>Acciones</th></tr></thead>
+          <tbody id="users-tbody"></tbody></table>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </main>
+</div><!-- /layout -->
+</div><!-- /app-screen -->
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- FICHA -->
+<div class="modal-overlay" id="fichaModal">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header"><div class="modal-title" id="ficha-title">Ficha Técnica</div><button class="modal-close" onclick="closeModal('fichaModal')">×</button></div>
+    <div class="modal-body" id="ficha-body"></div>
+  </div>
+</div>
+
+<!-- RESERVA -->
+<div class="modal-overlay" id="reservaModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Nueva Reserva</div><button class="modal-close" onclick="closeModal('reservaModal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Vehículo</label><select class="form-select" id="res-vehicle"><option value="">Seleccionar...</option></select></div>
+      <div class="form-group"><label class="form-label">Conductor</label><input type="text" class="form-input" id="res-conductor" placeholder="Nombre del conductor"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Fecha Inicio</label><input type="date" class="form-input" id="res-desde"></div>
+        <div class="form-group"><label class="form-label">Fecha Fin</label><input type="date" class="form-input" id="res-hasta"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Destino</label><input type="text" class="form-input" id="res-destino" placeholder="Ciudad o descripción"></div>
+      <div class="form-group"><label class="form-label">Notas</label><textarea class="form-textarea" id="res-notas"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('reservaModal')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-crear-res" onclick="crearReserva()">Crear Reserva</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD VEHICLE -->
+<div class="modal-overlay" id="addVehicleModal">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header"><div class="modal-title">Añadir Vehículo</div><button class="modal-close" onclick="closeModal('addVehicleModal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Marca</label><input type="text" class="form-input" id="veh-marca" placeholder="Toyota..."></div>
+        <div class="form-group"><label class="form-label">Modelo</label><input type="text" class="form-input" id="veh-modelo" placeholder="Hilux..."></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Matrícula</label><input type="text" class="form-input" id="veh-matricula" placeholder="1234-ABC"></div>
+        <div class="form-group"><label class="form-label">Año</label><input type="number" class="form-input" id="veh-anio" placeholder="2024"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Combustible</label><select class="form-select" id="veh-comb"><option>Gasolina</option><option>Diésel</option><option>Híbrido</option><option>Eléctrico</option><option>GLP</option></select></div>
+        <div class="form-group"><label class="form-label">Tipo</label><select class="form-select" id="veh-tipo"><option>🚗 Turismo</option><option>🚐 Furgoneta</option><option>🚛 Camión</option><option>🏎️ Deportivo</option><option>🚌 Autobús</option><option>🚙 SUV</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">KM</label><input type="number" class="form-input" id="veh-km" placeholder="0"></div>
+        <div class="form-group"><label class="form-label">Color</label><input type="text" class="form-input" id="veh-color" placeholder="Blanco..."></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">VIN / Bastidor</label><input type="text" class="form-input" id="veh-vin" placeholder="WBA..."></div>
+        <div class="form-group"><label class="form-label">Potencia (CV)</label><input type="number" class="form-input" id="veh-pot" placeholder="150"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Foto</label>
+        <div id="new-foto-preview" style="display:none;margin-bottom:8px;border-radius:8px;overflow:hidden;height:130px;background:var(--surface3)"><img id="new-foto-img" src="" style="width:100%;height:100%;object-fit:cover"></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="file" id="veh-foto-input" accept="image/*" style="display:none" onchange="previewNewFoto(event)">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('veh-foto-input').click()">📷 Seleccionar foto</button>
+          <span id="new-foto-name" style="font-size:12px;color:var(--text2)">Sin foto</span>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Notas</label><textarea class="form-textarea" id="veh-notas"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('addVehicleModal')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-add-veh" onclick="addVehicle()">Añadir Vehículo</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ═══════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════ -->
+<script>
+const SUPA_URL = 'https://vszduymuuiszlkrtsjrf.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzemR1eW11dWlzemxrcnRzanJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5Mjc3MzYsImV4cCI6MjA5MzUwMzczNn0.l7stdQYk86CN2HYQibUYBL5QxHXT2lGKySm9vmz6OcE';
+const db = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ── STATE ──
+let currentUser   = null;
+let currentPerfil = null;
+let isAdmin       = false;
+let vehiculos     = [];
+let reservas      = [];
+let documentos    = [];
+let usuarios      = [];
+let pendingFiles  = [];
+let newFotoFile   = null;
+let editFotoFile  = null;
+let editFotoRem   = false;
+let histFilter    = 'todos';
+let calMonth      = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+
+// ── UTILS ──
+const getV       = id => vehiculos.find(v => v.id === id);
+const slabel     = s  => ({disponible:'Disponible',reservado:'Reservado',mantenimiento:'Mantenimiento'}[s]||s);
+const sclass     = s  => ({disponible:'s-av',reservado:'s-re',mantenimiento:'s-ma'}[s]||'');
+const fmtDate    = d  => d ? new Date(d+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+const setLoading = (on,t='Cargando...') => { document.getElementById('loading-overlay').classList.toggle('hidden',!on); document.getElementById('loading-text').textContent=t; };
+function toast(msg,type='success'){
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;
+  el.innerHTML=`<span>${type==='success'?'✅':'❌'}</span><span>${msg}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(()=>el.remove(),3500);
+}
+function setBtnL(id,on){
+  const b=document.getElementById(id); if(!b)return;
+  b.disabled=on;
+  if(on){b.dataset.orig=b.textContent;b.textContent='⏳ Cargando...';}
+  else b.textContent=b.dataset.orig||b.textContent;
+}
+
+// ── AUTH ──
+function switchAuthTab(tab, btn){
+  document.querySelectorAll('.auth-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-login').style.display   = tab==='login'?'block':'none';
+  document.getElementById('tab-register').style.display= tab==='register'?'block':'none';
+  clearAuthMsgs();
+}
+function clearAuthMsgs(){
+  ['auth-error','auth-success'].forEach(id=>{const el=document.getElementById(id);el.classList.remove('show');el.textContent='';});
+}
+function showAuthError(msg){ const el=document.getElementById('auth-error'); el.textContent=msg; el.classList.add('show'); }
+function showAuthSuccess(msg){ const el=document.getElementById('auth-success'); el.textContent=msg; el.classList.add('show'); }
+
+async function doLogin(){
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  if(!email||!pass){ showAuthError('Introduce email y contraseña'); return; }
+  setBtnL('btn-login',true); clearAuthMsgs();
+  const { error } = await db.auth.signInWithPassword({email,password:pass});
+  if(error){ showAuthError(error.message==='Invalid login credentials'?'Email o contraseña incorrectos':error.message); }
+  setBtnL('btn-login',false);
+}
+
+async function doRegister(){
+  const nombre = document.getElementById('reg-nombre').value.trim();
+  const email  = document.getElementById('reg-email').value.trim();
+  const pass   = document.getElementById('reg-password').value;
+  if(!nombre||!email||!pass){ showAuthError('Completa todos los campos'); return; }
+  if(pass.length<6){ showAuthError('La contraseña debe tener al menos 6 caracteres'); return; }
+  setBtnL('btn-register',true); clearAuthMsgs();
+  const { error } = await db.auth.signUp({email,password:pass,options:{data:{nombre}}});
+  if(error){ showAuthError(error.message); }
+  else { showAuthSuccess('Cuenta creada. Revisa tu email para confirmarla (si está activada la verificación).'); }
+  setBtnL('btn-register',false);
+}
+
+async function doLogout(){
+  await db.auth.signOut();
+}
+
+// ── SESSION LISTENER ──
+db.auth.onAuthStateChange(async (event, session) => {
+  if(session?.user){
+    currentUser = session.user;
+    setLoading(true,'Cargando datos...');
+    // load perfil
+    const { data: perfil } = await db.from('perfiles').select('*').eq('id',currentUser.id).single();
+    currentPerfil = perfil;
+    isAdmin = perfil?.rol === 'admin';
+    updateUserUI();
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app-screen').classList.add('visible');
+    await loadAll();
+    setLoading(false);
+  } else {
+    currentUser=null; currentPerfil=null; isAdmin=false;
+    document.getElementById('auth-screen').style.display  = 'flex';
+    document.getElementById('app-screen').classList.remove('visible');
+    setLoading(false);
+  }
+});
+
+function updateUserUI(){
+  const nombre = currentPerfil?.nombre || currentUser?.email?.split('@')[0] || '?';
+  document.getElementById('user-name').textContent   = nombre;
+  document.getElementById('user-role').textContent   = isAdmin ? '👑 Administrador' : '👤 Usuario';
+  document.getElementById('user-avatar').textContent = nombre[0].toUpperCase();
+  // admin class on body
+  document.body.classList.toggle('is-admin', isAdmin);
+}
+
+// ── STORAGE HELPERS ──
+async function uploadFoto(file, path){
+  const { error } = await db.storage.from('vehiculos-fotos').upload(path, file, {upsert:true});
+  if(error) throw error;
+  return db.storage.from('vehiculos-fotos').getPublicUrl(path).data.publicUrl;
+}
+async function uploadDoc(file, path){
+  const { error } = await db.storage.from('vehiculos-docs').upload(path, file, {upsert:true});
+  if(error) throw error;
+  return db.storage.from('vehiculos-docs').getPublicUrl(path).data.publicUrl;
+}
+
+// ── LOAD ALL ──
+async function loadAll(){
+  try{
+    const queries = [
+      db.from('vehiculos').select('*').order('created_at'),
+      db.from('reservas').select('*').order('created_at',{ascending:false}),
+      db.from('documentos').select('*').order('created_at',{ascending:false}),
+    ];
+    if(isAdmin) queries.push(db.from('perfiles').select('*').order('created_at'));
+    const results = await Promise.all(queries);
+    results.forEach(r=>{ if(r.error) console.error(r.error); });
+    vehiculos  = results[0].data||[];
+    reservas   = results[1].data||[];
+    documentos = results[2].data||[];
+    if(isAdmin) usuarios = results[3]?.data||[];
+  }catch(e){ toast('Error cargando datos: '+e.message,'error'); }
+  renderDashboard();
+}
+
+// ── NAVIGATION ──
+function showView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.getAttribute('onclick')?.includes(`'${name}'`)));
+  const titles={dashboard:'Dashboard',vehiculos:'Vehículos',reservas:'Reservas',calendario:'Calendario',historial:'Historial',documentos:'Documentos',usuarios:'Usuarios'};
+  document.getElementById('topbarTitle').textContent=titles[name]||name;
+  closeSidebar();
+  if(name==='dashboard')  renderDashboard();
+  if(name==='vehiculos')  renderVehiculos('todos');
+  if(name==='reservas')   renderReservas();
+  if(name==='calendario') renderCalendar();
+  if(name==='historial')  renderHistorial(histFilter);
+  if(name==='documentos') initDocumentos();
+  if(name==='usuarios'&&isAdmin) renderUsuarios();
+}
+
+// ── SIDEBAR MOBILE ──
+function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open'); document.getElementById('mob-overlay').classList.toggle('show'); }
+function closeSidebar(){ document.getElementById('sidebar').classList.remove('open'); document.getElementById('mob-overlay').classList.remove('show'); }
+
+// ── MODALS ──
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+window.onclick=e=>{ if(e.target.classList.contains('modal-overlay')) closeModal(e.target.id); };
+
+// ── VEHICLE CARD ──
+function vcardHTML(v){
+  const img = v.foto_url
+    ? `<img src="${v.foto_url}" alt="${v.marca}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;">`
+    : `<div class="vehicle-img-bg"></div><div class="vehicle-img-emoji">${v.tipo||'🚗'}</div>`;
+  const adminBtns = isAdmin ? `
+    <button class="btn btn-secondary btn-sm" onclick="cycleStatus(${v.id})">⚙️</button>` : '';
+  return `
+  <div class="vehicle-card">
+    <div class="vehicle-img" style="position:relative;overflow:hidden;">${img}</div>
+    <div class="vehicle-info">
+      <div class="vehicle-name">${v.marca} ${v.modelo}</div>
+      <div class="vehicle-plate">${v.matricula}</div>
+      <div class="vehicle-meta">
+        <span class="meta-item">📅 ${v.anio||'—'}</span>
+        <span class="meta-item">⛽ ${v.combustible||'—'}</span>
+        <span class="meta-item">🛣️ ${(v.km||0).toLocaleString('es-ES')} km</span>
+      </div>
+      <div class="vehicle-status ${sclass(v.estado)}"><span class="sdot"></span>${slabel(v.estado)}</div>
+    </div>
+    <div class="vehicle-actions">
+      <button class="btn btn-secondary btn-sm" onclick="openFicha(${v.id})">📋 Ficha</button>
+      <button class="btn btn-secondary btn-sm" onclick="openResForVeh(${v.id})" ${v.estado!=='disponible'||!isAdmin?'disabled style="opacity:.4;cursor:not-allowed"':''}>📅 Reservar</button>
+      ${adminBtns}
+    </div>
+  </div>`;
+}
+
+// ── DASHBOARD ──
+function renderDashboard(){
+  document.getElementById('st-total').textContent = vehiculos.length;
+  document.getElementById('st-disp').textContent  = vehiculos.filter(v=>v.estado==='disponible').length;
+  document.getElementById('st-res').textContent   = vehiculos.filter(v=>v.estado==='reservado').length;
+  document.getElementById('st-mant').textContent  = vehiculos.filter(v=>v.estado==='mantenimiento').length;
+  document.getElementById('dash-vehicles').innerHTML = vehiculos.length
+    ? vehiculos.map(vcardHTML).join('')
+    : `<div class="empty-state"><div class="empty-state-icon">🚗</div><h3>Sin vehículos</h3></div>`;
+}
+
+// ── VEHICULOS ──
+function renderVehiculos(filter){
+  const list = filter==='todos'?vehiculos:vehiculos.filter(v=>v.estado===filter);
+  document.getElementById('v-grid').innerHTML = list.length
+    ? list.map(vcardHTML).join('')
+    : `<div class="empty-state"><div class="empty-state-icon">🚗</div><h3>Sin resultados</h3></div>`;
+}
+function filterV(f,btn){
+  document.querySelectorAll('#v-filters .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); renderVehiculos(f);
+}
+
+// ── FICHA ──
+function openFicha(id){
+  const v = getV(id);
+  document.getElementById('ficha-title').textContent = `${v.marca} ${v.modelo} — ${v.matricula}`;
+  const dCount=documentos.filter(d=>d.vehiculo_id===id).length;
+  const rCount=reservas.filter(r=>r.vehiculo_id===id).length;
+  const adminHtml = isAdmin ? `
+    <button class="btn btn-secondary btn-sm" onclick="openFichaEdit(${id})">✏️ Editar</button>
+    <button class="btn btn-danger btn-sm" onclick="deleteVehiculo(${id})" style="margin-left:auto">🗑️ Eliminar</button>` : '';
+  document.getElementById('ficha-body').innerHTML = `
+    <div class="ficha-header">
+      <div style="width:100px;height:82px;border-radius:10px;overflow:hidden;flex-shrink:0;background:var(--surface3);display:flex;align-items:center;justify-content:center;">
+        ${v.foto_url?`<img src="${v.foto_url}" style="width:100%;height:100%;object-fit:cover;">`:`<span style="font-size:50px">${v.tipo||'🚗'}</span>`}
+      </div>
+      <div style="flex:1">
+        <div class="ficha-name">${v.marca} ${v.modelo}</div>
+        <div style="color:var(--text2);margin:4px 0;font-size:13px">${v.anio||'—'} · ${v.color||'—'}</div>
+        <div class="vehicle-status ${sclass(v.estado)}" style="margin-top:8px;display:inline-flex"><span class="sdot"></span>${slabel(v.estado)}</div>
+      </div>
+    </div>
+    <div class="specs-grid">
+      <div class="spec-card"><div class="spec-label">Matrícula</div><div class="spec-value">${v.matricula}</div></div>
+      <div class="spec-card"><div class="spec-label">Año</div><div class="spec-value">${v.anio||'—'}</div></div>
+      <div class="spec-card"><div class="spec-label">Combustible</div><div class="spec-value">${v.combustible||'—'}</div></div>
+      <div class="spec-card"><div class="spec-label">Potencia</div><div class="spec-value">${v.potencia||'—'} CV</div></div>
+      <div class="spec-card"><div class="spec-label">Kilómetros</div><div class="spec-value">${(v.km||0).toLocaleString('es-ES')} km</div></div>
+      <div class="spec-card"><div class="spec-label">Color</div><div class="spec-value">${v.color||'—'}</div></div>
+      <div class="spec-card" style="grid-column:1/-1"><div class="spec-label">VIN / Bastidor</div><div class="spec-value" style="font-size:12px;font-family:monospace">${v.vin||'—'}</div></div>
+    </div>
+    ${v.notas?`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:13px 15px;margin-bottom:18px;font-size:13px;color:var(--text2)"><strong style="color:var(--text)">Notas:</strong> ${v.notas}</div>`:''}
+    <div style="display:flex;gap:10px;margin-bottom:14px">
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:13px 18px;flex:1;text-align:center">
+        <div style="font-size:22px;font-weight:700;font-family:'Syne',sans-serif;color:var(--accent2)">${rCount}</div>
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-top:2px">Reservas</div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:13px 18px;flex:1;text-align:center">
+        <div style="font-size:22px;font-weight:700;font-family:'Syne',sans-serif;color:var(--accent)">${dCount}</div>
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-top:2px">Documentos</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" onclick="closeModal('fichaModal');openResForVeh(${v.id})" ${v.estado!=='disponible'||!isAdmin?'disabled style="opacity:.5"':''}>📅 Reservar</button>
+      ${adminHtml}
+    </div>`;
+  openModal('fichaModal');
+}
+
+// ── EDIT FICHA ──
+function openFichaEdit(id){
+  if(!isAdmin){ toast('Solo el admin puede editar vehículos','error'); return; }
+  editFotoFile=null; editFotoRem=false;
+  const v=getV(id);
+  document.getElementById('ficha-title').textContent=`Editar — ${v.marca} ${v.modelo}`;
+  document.getElementById('ficha-body').innerHTML=`
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Marca</label><input class="form-input" id="ef-marca" value="${v.marca}"></div>
+      <div class="form-group"><label class="form-label">Modelo</label><input class="form-input" id="ef-modelo" value="${v.modelo}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Matrícula</label><input class="form-input" id="ef-mat" value="${v.matricula}"></div>
+      <div class="form-group"><label class="form-label">Año</label><input type="number" class="form-input" id="ef-anio" value="${v.anio||''}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Combustible</label><select class="form-select" id="ef-comb">${['Gasolina','Diésel','Híbrido','Eléctrico','GLP'].map(c=>`<option${v.combustible===c?' selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="form-group"><label class="form-label">Tipo</label><select class="form-select" id="ef-tipo">${[['🚗','Turismo'],['🚐','Furgoneta'],['🚛','Camión'],['🏎️','Deportivo'],['🚌','Autobús'],['🚙','SUV']].map(([e,l])=>`<option value="${e}"${v.tipo===e?' selected':''}>${e} ${l}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">KM</label><input type="number" class="form-input" id="ef-km" value="${v.km||0}"></div>
+      <div class="form-group"><label class="form-label">Potencia (CV)</label><input type="number" class="form-input" id="ef-pot" value="${v.potencia||''}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Color</label><input class="form-input" id="ef-color" value="${v.color||''}"></div>
+      <div class="form-group"><label class="form-label">Estado</label><select class="form-select" id="ef-estado">${['disponible','reservado','mantenimiento'].map(s=>`<option value="${s}"${v.estado===s?' selected':''}>${slabel(s)}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-group"><label class="form-label">VIN / Bastidor</label><input class="form-input" id="ef-vin" value="${v.vin||''}"></div>
+    <div class="form-group">
+      <label class="form-label">Foto</label>
+      <div id="ef-foto-prev" style="${v.foto_url?'':'display:none;'}margin-bottom:8px;border-radius:8px;overflow:hidden;height:130px;background:var(--surface3)"><img id="ef-foto-img" src="${v.foto_url||''}" style="width:100%;height:100%;object-fit:cover"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="file" id="ef-foto-input" accept="image/*" style="display:none" onchange="prevEditFoto(event)">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('ef-foto-input').click()">📷 ${v.foto_url?'Cambiar':'Añadir'} foto</button>
+        ${v.foto_url?`<button type="button" class="btn btn-danger btn-sm" onclick="remEditFoto()">✕ Quitar</button>`:''}
+        <span id="ef-foto-name" style="font-size:12px;color:var(--text2)">${v.foto_url?'Foto actual':'Sin foto'}</span>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Notas</label><textarea class="form-textarea" id="ef-notas">${v.notas||''}</textarea></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-primary" id="btn-save-veh" onclick="saveVehiculo(${id})">💾 Guardar</button>
+      <button class="btn btn-secondary" onclick="openFicha(${id})">✕ Cancelar</button>
+    </div>`;
+}
+function prevEditFoto(e){
+  const f=e.target.files[0]; if(!f)return; editFotoFile=f; editFotoRem=false;
+  const r=new FileReader(); r.onload=ev=>{document.getElementById('ef-foto-img').src=ev.target.result;document.getElementById('ef-foto-prev').style.display='block';document.getElementById('ef-foto-name').textContent=f.name;}; r.readAsDataURL(f);
+}
+function remEditFoto(){ editFotoFile=null; editFotoRem=true; document.getElementById('ef-foto-prev').style.display='none'; document.getElementById('ef-foto-name').textContent='Sin foto'; }
+async function saveVehiculo(id){
+  setBtnL('btn-save-veh',true);
+  try{
+    const v=getV(id);
+    let foto_url=v.foto_url||null;
+    if(editFotoRem) foto_url=null;
+    else if(editFotoFile) foto_url=await uploadFoto(editFotoFile,`${id}/foto_${Date.now()}`);
+    const upd={marca:document.getElementById('ef-marca').value.trim()||v.marca,modelo:document.getElementById('ef-modelo').value.trim()||v.modelo,matricula:document.getElementById('ef-mat').value.trim()||v.matricula,anio:parseInt(document.getElementById('ef-anio').value)||v.anio,combustible:document.getElementById('ef-comb').value,tipo:document.getElementById('ef-tipo').value,km:parseInt(document.getElementById('ef-km').value)||0,potencia:parseInt(document.getElementById('ef-pot').value)||0,color:document.getElementById('ef-color').value.trim(),estado:document.getElementById('ef-estado').value,vin:document.getElementById('ef-vin').value.trim(),notas:document.getElementById('ef-notas').value,foto_url};
+    const {error}=await db.from('vehiculos').update(upd).eq('id',id);
+    if(error) throw error;
+    Object.assign(v,upd);
+    closeModal('fichaModal'); toast(`${upd.marca} ${upd.modelo} actualizado`); renderDashboard();
+    if(document.querySelector('.view.active').id==='view-vehiculos') renderVehiculos('todos');
+  }catch(e){toast('Error: '+e.message,'error');}
+  setBtnL('btn-save-veh',false);
+}
+async function deleteVehiculo(id){
+  if(!isAdmin||!confirm('¿Eliminar este vehículo y todos sus datos?')) return;
+  try{
+    const {error}=await db.from('vehiculos').delete().eq('id',id);
+    if(error) throw error;
+    vehiculos=vehiculos.filter(v=>v.id!==id);
+    reservas=reservas.filter(r=>r.vehiculo_id!==id);
+    documentos=documentos.filter(d=>d.vehiculo_id!==id);
+    closeModal('fichaModal'); toast('Vehículo eliminado'); renderDashboard();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
+// ── CYCLE STATUS ──
+async function cycleStatus(id){
+  if(!isAdmin) return;
+  const v=getV(id); const states=['disponible','reservado','mantenimiento'];
+  const ns=states[(states.indexOf(v.estado)+1)%3];
+  const {error}=await db.from('vehiculos').update({estado:ns}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return;}
+  v.estado=ns; toast(`Estado → ${slabel(ns)}`); renderDashboard();
+  if(document.querySelector('.view.active').id==='view-vehiculos') renderVehiculos('todos');
+}
+
+// ── ADD VEHICLE ──
+function previewNewFoto(e){
+  const f=e.target.files[0]; if(!f)return; newFotoFile=f;
+  const r=new FileReader(); r.onload=ev=>{document.getElementById('new-foto-img').src=ev.target.result;document.getElementById('new-foto-preview').style.display='block';document.getElementById('new-foto-name').textContent=f.name;}; r.readAsDataURL(f);
+}
+async function addVehicle(){
+  if(!isAdmin){toast('Solo el admin puede añadir vehículos','error');return;}
+  const marca=document.getElementById('veh-marca').value.trim();
+  const modelo=document.getElementById('veh-modelo').value.trim();
+  const mat=document.getElementById('veh-matricula').value.trim();
+  if(!marca||!modelo||!mat){toast('Marca, modelo y matrícula son obligatorios','error');return;}
+  setBtnL('btn-add-veh',true);
+  try{
+    const tipo=document.getElementById('veh-tipo').value.split(' ')[0];
+    const {data,error}=await db.from('vehiculos').insert({marca,modelo,matricula:mat,anio:parseInt(document.getElementById('veh-anio').value)||new Date().getFullYear(),combustible:document.getElementById('veh-comb').value,tipo,km:parseInt(document.getElementById('veh-km').value)||0,color:document.getElementById('veh-color').value||'Sin especificar',vin:document.getElementById('veh-vin').value||'N/D',potencia:parseInt(document.getElementById('veh-pot').value)||0,estado:'disponible',notas:document.getElementById('veh-notas').value,foto_url:null}).select().single();
+    if(error) throw error;
+    if(newFotoFile){const url=await uploadFoto(newFotoFile,`${data.id}/foto_${Date.now()}`);await db.from('vehiculos').update({foto_url:url}).eq('id',data.id);data.foto_url=url;}
+    vehiculos.push(data);
+    closeModal('addVehicleModal'); toast(`${marca} ${modelo} añadido`);
+    newFotoFile=null; document.getElementById('new-foto-preview').style.display='none'; document.getElementById('new-foto-name').textContent='Sin foto';
+    ['veh-marca','veh-modelo','veh-matricula','veh-anio','veh-km','veh-color','veh-vin','veh-pot','veh-notas'].forEach(i=>document.getElementById(i).value='');
+    renderDashboard();
+    if(document.querySelector('.view.active').id==='view-vehiculos') renderVehiculos('todos');
+  }catch(e){toast('Error: '+e.message,'error');}
+  setBtnL('btn-add-veh',false);
+}
+
+// ── RESERVAS ──
+function populateReservaVehiculos(){
+  document.getElementById('res-vehicle').innerHTML='<option value="">Seleccionar...</option>'+
+    vehiculos.filter(v=>v.estado==='disponible').map(v=>`<option value="${v.id}">${v.tipo||'🚗'} ${v.marca} ${v.modelo} (${v.matricula})</option>`).join('');
+}
+function openResForVeh(id){
+  if(!isAdmin){toast('Solo el admin puede crear reservas','error');return;}
+  populateReservaVehiculos(); openModal('reservaModal');
+  setTimeout(()=>{document.getElementById('res-vehicle').value=id;},50);
+}
+async function crearReserva(){
+  if(!isAdmin){toast('Sin permisos','error');return;}
+  const vid=parseInt(document.getElementById('res-vehicle').value);
+  const cond=document.getElementById('res-conductor').value.trim();
+  const desde=document.getElementById('res-desde').value;
+  const hasta=document.getElementById('res-hasta').value;
+  const dest=document.getElementById('res-destino').value.trim();
+  if(!vid||!cond||!desde||!hasta||!dest){toast('Completa todos los campos','error');return;}
+  if(desde>hasta){toast('La fecha inicio no puede ser posterior al fin','error');return;}
+  setBtnL('btn-crear-res',true);
+  try{
+    const {data,error}=await db.from('reservas').insert({vehiculo_id:vid,user_id:currentUser.id,conductor:cond,desde,hasta,destino:dest,notas:document.getElementById('res-notas').value,estado:'activa'}).select().single();
+    if(error) throw error;
+    reservas.unshift(data);
+    await db.from('vehiculos').update({estado:'reservado'}).eq('id',vid);
+    const v=getV(vid); if(v)v.estado='reservado';
+    closeModal('reservaModal'); toast(`Reserva creada para ${v?v.marca+' '+v.modelo:'vehículo'}`);
+    ['res-vehicle','res-conductor','res-desde','res-hasta','res-destino','res-notas'].forEach(i=>document.getElementById(i).value='');
+    renderDashboard();
+    const av=document.querySelector('.view.active').id.replace('view-','');
+    if(av==='reservas') renderReservas();
+    if(av==='calendario') renderCalendar();
+  }catch(e){toast('Error: '+e.message,'error');}
+  setBtnL('btn-crear-res',false);
+}
+function renderReservas(){
+  const tbody=document.getElementById('res-tbody');
+  const list=reservas.filter(r=>r.estado==='activa');
+  if(!list.length){tbody.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:36px;color:var(--text2)">No hay reservas activas</td></tr>`;return;}
+  const actionCol=isAdmin?`<th>Acciones</th>`:'';
+  tbody.innerHTML=list.map(r=>{
+    const v=getV(r.vehiculo_id);
+    const adminBtns=isAdmin?`<td><button class="btn btn-secondary btn-sm" onclick="cambiarEstRes(${r.id},'completada')">✅</button><button class="btn btn-danger btn-sm" onclick="cambiarEstRes(${r.id},'cancelada')" style="margin-left:4px">✕</button></td>`:'<td>—</td>';
+    return `<tr><td>${v?`${v.tipo||''} ${v.marca} ${v.modelo}`:'—'}</td><td>${r.conductor}</td><td>${fmtDate(r.desde)}</td><td>${fmtDate(r.hasta)}</td><td>${r.destino}</td><td><span class="badge s-re"><span class="sdot"></span>Activa</span></td>${adminBtns}</tr>`;
+  }).join('');
+}
+async function cambiarEstRes(id,nuevoEstado){
+  if(!isAdmin)return;
+  const {error}=await db.from('reservas').update({estado:nuevoEstado}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return;}
+  const r=reservas.find(x=>x.id===id); r.estado=nuevoEstado;
+  const v=getV(r.vehiculo_id);
+  if(v){await db.from('vehiculos').update({estado:'disponible'}).eq('id',v.id);v.estado='disponible';}
+  toast(nuevoEstado==='completada'?'Reserva completada':'Reserva cancelada');
+  renderReservas(); renderDashboard();
+  if(document.querySelector('.view.active').id==='view-calendario') renderCalendar();
+}
+
+// ── HISTORIAL ──
+function renderHistorial(filter){
+  histFilter=filter;
+  const list=filter==='todos'?reservas:reservas.filter(r=>r.estado===filter);
+  const tbody=document.getElementById('hist-tbody');
+  if(!list.length){tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:36px;color:var(--text2)">Sin registros</td></tr>`;return;}
+  const badges={completada:`<span class="badge s-av"><span class="sdot"></span>Completada</span>`,cancelada:`<span class="badge s-ma"><span class="sdot"></span>Cancelada</span>`,activa:`<span class="badge s-re"><span class="sdot"></span>Activa</span>`};
+  tbody.innerHTML=list.map(r=>{
+    const v=getV(r.vehiculo_id);
+    return `<tr><td>${fmtDate(r.desde)}</td><td>${v?`${v.tipo||''} ${v.marca} ${v.modelo}`:'—'}</td><td>${r.conductor}</td><td>${r.destino}</td><td>${badges[r.estado]||r.estado}</td><td style="color:var(--text2);font-size:12px">${r.notas||'—'}</td></tr>`;
+  }).join('');
+}
+function filterH(f,btn){
+  document.querySelectorAll('#view-historial .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); renderHistorial(f);
+}
+
+// ── CALENDAR ──
+function renderCalendar(){
+  const meses=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('cal-label').textContent=`${meses[calMonth.getMonth()]} ${calMonth.getFullYear()}`;
+  const grid=document.getElementById('cal-grid');
+  const dias=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  const hoy=new Date(); hoy.setHours(0,0,0,0);
+  let html=dias.map(d=>`<div class="cal-dname">${d}</div>`).join('');
+  const pri=new Date(calMonth.getFullYear(),calMonth.getMonth(),1);
+  const ult=new Date(calMonth.getFullYear(),calMonth.getMonth()+1,0);
+  let sdow=pri.getDay(); sdow=sdow===0?6:sdow-1;
+  const prevUlt=new Date(calMonth.getFullYear(),calMonth.getMonth(),0).getDate();
+  for(let i=sdow-1;i>=0;i--) html+=`<div class="cal-day om"><div class="cal-num">${prevUlt-i}</div></div>`;
+  for(let d=1;d<=ult.getDate();d++){
+    const ddate=new Date(calMonth.getFullYear(),calMonth.getMonth(),d);
+    const isH=ddate.getTime()===hoy.getTime();
+    const dayRes=reservas.filter(r=>{if(r.estado!=='activa')return false;return ddate>=new Date(r.desde+'T00:00:00')&&ddate<=new Date(r.hasta+'T00:00:00');});
+    const evs=dayRes.map(r=>{const v=getV(r.vehiculo_id);return `<div class="cal-ev res">${v?`${v.marca} ${v.modelo} (${v.matricula})`:'?'}: ${r.conductor}</div>`;}).join('');
+    html+=`<div class="cal-day${isH?' td':''}"><div class="cal-num">${d}</div>${evs}</div>`;
+  }
+  const rem=42-sdow-ult.getDate();
+  for(let i=1;i<=rem;i++) html+=`<div class="cal-day om"><div class="cal-num">${i}</div></div>`;
+  grid.innerHTML=html;
+}
+function changeMonth(dir){calMonth.setMonth(calMonth.getMonth()+dir);renderCalendar();}
+
+// ── DOCUMENTOS ──
+function initDocumentos(){
+  const opts=vehiculos.map(v=>`<option value="${v.id}">${v.marca} ${v.modelo} (${v.matricula})</option>`).join('');
+  document.getElementById('doc-veh-sel').innerHTML=opts;
+  document.getElementById('doc-filter-veh').innerHTML='<option value="">Todos los vehículos</option>'+vehiculos.map(v=>`<option value="${v.id}">${v.marca} ${v.modelo}</option>`).join('');
+  renderDocList();
+}
+function switchDocTab(tab,btn){
+  document.querySelectorAll('#view-documentos .tab-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+  document.querySelectorAll('#view-documentos .tab-pane').forEach(c=>c.classList.remove('active'));
+  document.getElementById('doc-'+tab).classList.add('active');
+  if(tab==='list') renderDocList();
+}
+function handleDrop(e){e.preventDefault();document.getElementById('drop-zone').classList.remove('dov');addFiles(Array.from(e.dataTransfer.files));}
+function handleFileSelect(e){addFiles(Array.from(e.target.files));}
+function addFiles(files){files.forEach(f=>pendingFiles.push(f));renderPending();}
+function renderPending(){
+  const el=document.getElementById('pending-uploads');
+  if(!pendingFiles.length){el.innerHTML='';return;}
+  el.innerHTML=`<div class="doc-list" style="margin-top:12px">${pendingFiles.map((f,i)=>`<div class="doc-item"><div style="font-size:20px">📄</div><div class="doc-name">${f.name}</div><div class="doc-size">${(f.size/1024).toFixed(0)} KB</div><button class="btn btn-danger btn-sm" onclick="remPending(${i})">✕</button></div>`).join('')}</div>`;
+}
+function remPending(i){pendingFiles.splice(i,1);renderPending();}
+async function uploadDocuments(){
+  if(!pendingFiles.length){toast('Selecciona al menos un archivo','error');return;}
+  const vid=parseInt(document.getElementById('doc-veh-sel').value);
+  const tipo=document.getElementById('doc-tipo-sel').value;
+  const fecha=document.getElementById('doc-fecha').value||new Date().toISOString().slice(0,10);
+  setBtnL('btn-upload-docs',true);
+  try{
+    for(const f of pendingFiles){
+      const path=`${vid}/${Date.now()}_${f.name.replace(/\s/g,'_')}`;
+      const storage_path=await uploadDoc(f,path);
+      const {data,error}=await db.from('documentos').insert({vehiculo_id:vid,user_id:currentUser.id,nombre:f.name,tipo,fecha,size_kb:`${(f.size/1024).toFixed(0)} KB`,storage_path}).select().single();
+      if(error) throw error;
+      documentos.unshift(data);
+    }
+    toast(`${pendingFiles.length} documento(s) subido(s)`);
+    pendingFiles=[]; renderPending(); document.getElementById('file-input').value='';
+  }catch(e){toast('Error: '+e.message,'error');}
+  setBtnL('btn-upload-docs',false);
+}
+function renderDocList(){
+  const filter=document.getElementById('doc-filter-veh').value;
+  const list=filter?documentos.filter(d=>d.vehiculo_id===parseInt(filter)):documentos;
+  const el=document.getElementById('doc-list-container');
+  if(!list.length){el.innerHTML=`<div class="empty-state"><div class="empty-state-icon">📂</div><h3>Sin documentos</h3></div>`;return;}
+  const byV={};
+  list.forEach(d=>{if(!byV[d.vehiculo_id])byV[d.vehiculo_id]=[];byV[d.vehiculo_id].push(d);});
+  el.innerHTML=Object.entries(byV).map(([vid,docs])=>{
+    const v=getV(parseInt(vid));
+    const delBtn=isAdmin?`<button class="btn btn-danger btn-sm" onclick="deleteDoc(ID)">✕</button>`:'';
+    return `<div class="table-container" style="margin-bottom:18px">
+      <div class="table-header"><div class="table-title">${v?`${v.tipo||''} ${v.marca} ${v.modelo} — ${v.matricula}`:'Vehículo'}</div></div>
+      <div class="doc-list" style="padding:12px 14px">
+        ${docs.map(d=>`<div class="doc-item"><div style="font-size:20px">📄</div><div><div class="doc-name">${d.nombre}</div><div style="font-size:11px;color:var(--text2)">${d.tipo} · ${fmtDate(d.fecha)}</div></div><div class="doc-size">${d.size_kb||'—'}</div><div style="display:flex;gap:6px">${d.storage_path?`<a href="${d.storage_path}" target="_blank" class="btn btn-secondary btn-sm" style="text-decoration:none">⬇ Abrir</a>`:''} ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="deleteDoc(${d.id})">✕</button>`:''}</div></div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+async function deleteDoc(id){
+  if(!isAdmin||!confirm('¿Eliminar documento?'))return;
+  try{
+    const doc=documentos.find(d=>d.id===id);
+    if(doc?.storage_path){try{const u=new URL(doc.storage_path);const s=u.pathname.split('/vehiculos-docs/');if(s[1])await db.storage.from('vehiculos-docs').remove([decodeURIComponent(s[1])]);}catch(_){}}
+    const {error}=await db.from('documentos').delete().eq('id',id);
+    if(error)throw error;
+    documentos=documentos.filter(d=>d.id!==id);
+    renderDocList(); toast('Documento eliminado');
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
+// ── USUARIOS (ADMIN) ──
+async function renderUsuarios(){
+  if(!isAdmin)return;
+  if(!usuarios.length){
+    const {data}=await db.from('perfiles').select('*').order('created_at');
+    usuarios=data||[];
+  }
+  const tbody=document.getElementById('users-tbody');
+  if(!usuarios.length){tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:36px;color:var(--text2)">Sin usuarios</td></tr>`;return;}
+  tbody.innerHTML=usuarios.map(u=>`<tr>
+    <td>${u.nombre||'—'}</td>
+    <td>${u.email}</td>
+    <td>${u.rol==='admin'?`<span class="role-badge-admin">👑 Admin</span>`:`<span class="role-badge-user">👤 Usuario</span>`}</td>
+    <td>${u.activo!==false?'<span style="color:var(--success)">● Activo</span>':'<span style="color:var(--danger)">● Inactivo</span>'}</td>
+    <td>${fmtDate(u.created_at?.slice(0,10))}</td>
+    <td style="display:flex;gap:6px;flex-wrap:wrap">
+      ${u.id!==currentUser.id?`
+        <button class="btn btn-secondary btn-sm" onclick="toggleRol('${u.id}','${u.rol}')">${u.rol==='admin'?'→ Usuario':'→ Admin'}</button>
+        <button class="btn btn-danger btn-sm" onclick="toggleActivo('${u.id}',${u.activo})">${u.activo!==false?'Desactivar':'Activar'}</button>
+      `:'<span style="font-size:12px;color:var(--text2)">(tú)</span>'}
+    </td>
+  </tr>`).join('');
+}
+async function toggleRol(uid,rolActual){
+  const nuevoRol=rolActual==='admin'?'usuario':'admin';
+  if(!confirm(`¿Cambiar rol a ${nuevoRol}?`))return;
+  const {error}=await db.from('perfiles').update({rol:nuevoRol}).eq('id',uid);
+  if(error){toast('Error: '+error.message,'error');return;}
+  const u=usuarios.find(x=>x.id===uid); if(u)u.rol=nuevoRol;
+  toast('Rol actualizado'); renderUsuarios();
+}
+async function toggleActivo(uid,activo){
+  const {error}=await db.from('perfiles').update({activo:!activo}).eq('id',uid);
+  if(error){toast('Error: '+error.message,'error');return;}
+  const u=usuarios.find(x=>x.id===uid); if(u)u.activo=!activo;
+  toast('Estado actualizado'); renderUsuarios();
+}
+
+// ── SEARCH ──
+function handleSearch(q){
+  const lq=q.toLowerCase().trim();
+  const av=document.querySelector('.view.active').id.replace('view-','');
+  if(av!=='dashboard'&&av!=='vehiculos')return;
+  const target=av==='dashboard'?'dash-vehicles':'v-grid';
+  const list=lq?vehiculos.filter(v=>`${v.marca} ${v.modelo} ${v.matricula}`.toLowerCase().includes(lq)):vehiculos;
+  document.getElementById(target).innerHTML=list.length?list.map(vcardHTML).join(''):`<div class="empty-state"><div class="empty-state-icon">🔍</div><h3>Sin resultados</h3></div>`;
+}
+
+// ── INIT (session check happens via onAuthStateChange) ──
+setLoading(true,'Iniciando FlotaPro...');
+</script>
+</body>
+</html>
