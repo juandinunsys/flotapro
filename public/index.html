@@ -681,19 +681,39 @@ async function uploadDoc(file, path){
 // ── LOAD ALL ──
 async function loadAll(){
   try{
-    const queries = [
-      db.from('vehiculos').select('*').order('created_at'),
-      db.from('reservas').select('*').order('created_at',{ascending:false}),
-      db.from('documentos').select('*').order('created_at',{ascending:false}),
-    ];
-    if(isAdmin) queries.push(db.from('perfiles').select('*').order('created_at'));
-    const results = await Promise.all(queries);
-    results.forEach(r=>{ if(r.error) console.error(r.error); });
-    vehiculos  = results[0].data||[];
-    reservas   = results[1].data||[];
-    documentos = results[2].data||[];
-    if(isAdmin) usuarios = results[3]?.data||[];
-  }catch(e){ toast('Error cargando datos: '+e.message,'error'); }
+    console.log('loadAll start, isAdmin:', isAdmin, 'user:', currentUser?.id);
+
+    const r0 = await db.from('vehiculos').select('*').order('created_at');
+    console.log('vehiculos:', r0.data?.length, 'error:', r0.error?.message);
+    if(r0.error) toast('Error vehiculos: '+r0.error.message,'error');
+
+    const r1 = await db.from('reservas').select('*').order('created_at',{ascending:false});
+    console.log('reservas:', r1.data?.length, 'error:', r1.error?.message);
+    if(r1.error) toast('Error reservas: '+r1.error.message,'error');
+
+    const r2 = await db.from('documentos').select('*').order('created_at',{ascending:false});
+    console.log('documentos:', r2.data?.length, 'error:', r2.error?.message);
+    if(r2.error) toast('Error documentos: '+r2.error.message,'error');
+
+    vehiculos  = r0.data||[];
+    reservas   = r1.data||[];
+    documentos = r2.data||[];
+
+    if(isAdmin){
+      const r3 = await db.from('perfiles').select('*').order('created_at');
+      console.log('perfiles:', r3.data?.length, 'error:', r3.error?.message);
+      usuarios = r3.data||[];
+    }
+
+    // Mostrar en pantalla para debug
+    const dbg = `Vehiculos:${vehiculos.length} Reservas:${reservas.length} Docs:${documentos.length} Admin:${isAdmin}`;
+    console.log('loadAll result:', dbg);
+    toast(dbg, vehiculos.length>0?'success':'error');
+
+  }catch(e){
+    console.error('loadAll exception:', e);
+    toast('Error: '+e.message,'error');
+  }
   renderDashboard();
 }
 
