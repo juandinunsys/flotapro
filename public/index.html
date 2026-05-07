@@ -7,7 +7,7 @@
 <title>FlotaPro — Gestión de Flota</title>
 <link rel="manifest" href="/manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 :root{--bg:#0a0c0f;--surface:#111318;--surface2:#191d24;--surface3:#20262f;--border:#2a3040;--accent:#e8ff47;--accent2:#47c8ff;--accent3:#ff6b47;--text:#f0f2f5;--text2:#8892a4;--text3:#4a5568;--success:#4ade80;--warning:#fbbf24;--danger:#f87171;--r:12px;--rlg:20px;}
 *{margin:0;padding:0;box-sizing:border-box;}html{scroll-behavior:smooth;}
@@ -623,20 +623,33 @@ async function doLogout(){
 }
 
 // ── SESSION LISTENER ──
+let _sessionHandled = false;
 db.auth.onAuthStateChange(async (event, session) => {
+  if(event === 'TOKEN_REFRESHED') return;
   if(session?.user){
+    if(_sessionHandled && currentUser?.id === session.user.id) return;
+    _sessionHandled = true;
     currentUser = session.user;
     setLoading(true,'Cargando datos...');
-    // load perfil
-    const { data: perfil } = await db.from('perfiles').select('*').eq('id',currentUser.id).single();
-    currentPerfil = perfil;
-    isAdmin = perfil?.rol === 'admin';
+    try{
+      // Timeout de 6s para la query de perfil
+      const perfilPromise = db.from('perfiles').select('*').eq('id',currentUser.id).single();
+      const timeoutPromise = new Promise((_,rej) => setTimeout(()=>rej(new Error('timeout')),6000));
+      const { data: perfil } = await Promise.race([perfilPromise, timeoutPromise]);
+      currentPerfil = perfil;
+      isAdmin = perfil?.rol === 'admin';
+    }catch(e){
+      console.warn('Perfil query failed:', e.message);
+      isAdmin = false;
+      currentPerfil = null;
+    }
     updateUserUI();
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app-screen').classList.add('visible');
     await loadAll();
     setLoading(false);
   } else {
+    _sessionHandled = false;
     currentUser=null; currentPerfil=null; isAdmin=false;
     document.getElementById('auth-screen').style.display  = 'flex';
     document.getElementById('app-screen').classList.remove('visible');
@@ -1143,8 +1156,32 @@ function handleSearch(q){
   document.getElementById(target).innerHTML=list.length?list.map(vcardHTML).join(''):`<div class="empty-state"><div class="empty-state-icon">🔍</div><h3>Sin resultados</h3></div>`;
 }
 
-// ── INIT (session check happens via onAuthStateChange) ──
+// ── INIT ──
 setLoading(true,'Iniciando FlotaPro...');
+
+// Fallback: si en 4s no resuelve, mostrar login con mensaje de error
+setTimeout(function(){
+  var overlay = document.getElementById('loading-overlay');
+  if(overlay && !overlay.classList.contains('hidden')){
+    overlay.classList.add('hidden');
+    document.getElementById('auth-screen').style.display='flex';
+    // Mostrar error de diagnostico
+    var err = document.getElementById('auth-error');
+    err.textContent = 'Timeout de conexion. Verifica que el SQL se ejecuto correctamente en Supabase y que las politicas RLS estan activas.';
+    err.classList.add('show');
+  }
+}, 4000);
+
+// Test de conexion a Supabase al arrancar
+(async function(){
+  try{
+    var r = await db.from('vehiculos').select('count', {count:'exact',head:true});
+    console.log('Supabase OK, vehiculos count:', r.count, 'error:', r.error);
+    if(r.error) console.error('Supabase RLS error:', r.error.message);
+  }catch(e){
+    console.error('Supabase connection failed:', e.message);
+  }
+})();
 </script>
 </body>
 </html>
